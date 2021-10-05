@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Action Classifier</string>
+    <string name="edit_message">Enter a message</string>
+    <string name="button_send">Send</string>
+    <string name="rad_btn_walking">Walking</string>
+    <string name="rad_btn_running">Running</string>
+    <string name="rad_btn_standing">Standing</string>
+    <string name="rad_btn_sitting">Sitting</string>
+    <string name="rad_btn_upstairs">Up stairs</string>
+    <string name="rad_btn_downstairs">Down stairs</string>
+    <string name="btn_start_stop">Start</string>
+    <string name="btn_pause_resume">Pause</string>
+    <string name="btn_discard">Discard</string>
+</resources>

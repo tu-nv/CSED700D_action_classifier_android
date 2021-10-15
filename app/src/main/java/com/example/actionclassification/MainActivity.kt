@@ -16,17 +16,14 @@ import java.io.File
 import java.io.FileWriter
 import java.lang.ref.WeakReference
 import kotlin.concurrent.withLock
-import android.os.PowerManager
-import android.os.PowerManager.WakeLock
 import android.view.WindowManager
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlin.concurrent.fixedRateTimer
 
 
 class MainActivity : AppCompatActivity() {
     private lateinit var mSensorManager : SensorManager
-    private var mAccel : Sensor ?= null
+    private var mLinear : Sensor ?= null
     private var mGravity : Sensor ?= null
     private var mGyro : Sensor ?= null
     private var isSensing : Boolean = false
@@ -41,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        mAccel = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        mLinear = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
         mGravity = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
         mGyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 
@@ -106,7 +103,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun startSensing() {
         setDiscardUntilTime()
-        mSensorManager.registerListener(sensorMonitor, mAccel, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
+        mSensorManager.registerListener(sensorMonitor, mLinear, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
         mSensorManager.registerListener(sensorMonitor, mGravity, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
         mSensorManager.registerListener(sensorMonitor, mGyro, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
     }
@@ -122,13 +119,13 @@ class MainActivity : AppCompatActivity() {
         val targetDir = createTargetDir(activityId)
         var toastText = ""
         sensorMonitor?.lock?.withLock {
-            saveSensorData(sensorMonitor?.accelEvents, activityId, targetDir, "linear.csv")
+            saveSensorData(sensorMonitor?.linearEvents, activityId, targetDir, "linear.csv")
             saveSensorData(sensorMonitor?.gravityEvents, activityId, targetDir, "gravity.csv")
             saveSensorData(sensorMonitor?.gyroEvents, activityId, targetDir, "gyro.csv")
-            toastText = "accel: " + sensorMonitor?.accelEvents?.size +
+            toastText = "accel: " + sensorMonitor?.linearEvents?.size +
                             "\ngravity: " + sensorMonitor?.gravityEvents?.size +
                             "\ngyro: " + sensorMonitor?.gyroEvents?.size +
-                            "\ntime: " + (sensorMonitor?.accelEvents?.size!! * samplingPeriodUs / 1_000_000)
+                            "\ntime: " + (sensorMonitor?.linearEvents?.size!! * samplingPeriodUs / 1_000_000)
             sensorMonitor?.clearAllEvents()
         }
         Toast.makeText(applicationContext, toastText, Toast.LENGTH_LONG).show()
@@ -160,6 +157,7 @@ class MainActivity : AppCompatActivity() {
             R.id.rad_btn_sitting -> 4
             R.id.rad_btn_upstairs -> 5
             R.id.rad_btn_downstairs -> 6
+            R.id.rad_btn_other -> 0
             else -> 0
         }
     }

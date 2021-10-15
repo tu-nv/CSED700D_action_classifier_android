@@ -4,10 +4,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.os.Handler
-import com.google.android.material.theme.MaterialComponentsViewInflater
 import java.lang.ref.WeakReference
 import android.os.HandlerThread
-import android.os.Looper
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
@@ -17,7 +15,7 @@ import kotlin.concurrent.withLock
 class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListener {
     private val mWorker = HandlerThread("WorkerThread")
     var mWorkerHandler: Handler? = null
-    var accelEvents: MutableList<String> = ArrayList()
+    var linearEvents: MutableList<String> = ArrayList()
     var gravityEvents: MutableList<String> = ArrayList()
     var gyroEvents: MutableList<String> = ArrayList()
 
@@ -47,8 +45,8 @@ class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListene
         if (lock.tryLock()) {
             try {
                 when (event.sensor?.type) {
-                    Sensor.TYPE_ACCELEROMETER -> {
-                        accelEvents.add(formatSensorEvent(event))
+                    Sensor.TYPE_LINEAR_ACCELERATION -> {
+                        linearEvents.add(formatSensorEvent(event))
                     }
                     Sensor.TYPE_GRAVITY -> {
                         gravityEvents.add(formatSensorEvent(event))
@@ -66,8 +64,8 @@ class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListene
     private fun formatSensorEvent(event: SensorEvent): String {
         return String.format(
             "%d,%.9e,%.9e,%.9e\n",
-            // save timestamp in millisecond unit
-            event.timestamp/1000000,
+            // default sensor timepstamp is nanosec, but we want microsec
+            event.timestamp/1000,
             event.values[0],
             event.values[1],
             event.values[2],
@@ -76,14 +74,14 @@ class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListene
 
     fun dropLastEvents(numEventsToRemove: Int) {
         lock.withLock {
-            accelEvents = accelEvents.dropLast(numEventsToRemove).toMutableList()
+            linearEvents = linearEvents.dropLast(numEventsToRemove).toMutableList()
             gravityEvents = gravityEvents.dropLast(numEventsToRemove).toMutableList()
             gyroEvents = gyroEvents.dropLast(numEventsToRemove).toMutableList()
         }
     }
 
     fun clearAllEvents() {
-        accelEvents = ArrayList()
+        linearEvents = ArrayList()
         gravityEvents = ArrayList()
         gyroEvents = ArrayList()
     }

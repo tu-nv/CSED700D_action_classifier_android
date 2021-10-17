@@ -1,5 +1,6 @@
 package com.example.actionclassification
 
+import android.app.Service
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -14,9 +15,9 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 
-class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListener {
+class SensorListener : SensorEventListener {
     private val mWorker = HandlerThread("WorkerThread")
-    var mWorkerHandler: Handler? = null
+    var mWorkerHandler: Handler
     var accelEvents: MutableList<String> = ArrayList()
     var gravityEvents: MutableList<String> = ArrayList()
     var gyroEvents: MutableList<String> = ArrayList()

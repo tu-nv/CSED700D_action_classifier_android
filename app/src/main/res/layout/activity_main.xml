@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".SensorDataCollectActivity">
 
     <RadioGroup
         android:id="@+id/rad_btn_activity_selection"
@@ -86,30 +86,14 @@
         android:id="@+id/text_view_save_dir"
         android:layout_width="133dp"
         android:layout_height="44dp"
-        android:layout_marginTop="28dp"
+        android:layout_marginTop="40dp"
         android:ems="10"
         android:hint="Save directory"
         android:inputType="text"
         android:text="trial_1"
-        app:layout_constraintEnd_toStartOf="@+id/text_delay_s"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintHorizontal_chainStyle="packed"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/rad_btn_activity_selection" />
-
-    <EditText
-        android:id="@+id/text_delay_s"
-        android:layout_width="127dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="20dp"
-        android:ems="10"
-        android:hint="delay (s)"
-        android:inputType="number"
-        android:text="5"
-        app:layout_constraintBottom_toBottomOf="@+id/text_view_save_dir"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/text_view_save_dir"
-        app:layout_constraintTop_toTopOf="@+id/text_view_save_dir" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/rad_btn_activity_selection" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -99,6 +99,7 @@ class MainActivity : AppCompatActivity() {
     private fun pauseSensing() {
         sensorMonitor?.isPause?.set(true)
         discardLastEvents()
+        toastDataSummary(sensorMonitor)
     }
 
     private fun startSensing() {
@@ -117,18 +118,13 @@ class MainActivity : AppCompatActivity() {
 
         val activityId = getCurrentActivityId()
         val targetDir = createTargetDir(activityId)
-        var toastText = ""
+        toastDataSummary(sensorMonitor)
         sensorMonitor?.lock?.withLock {
             saveSensorData(sensorMonitor?.linearEvents, activityId, targetDir, "linear.csv")
             saveSensorData(sensorMonitor?.gravityEvents, activityId, targetDir, "gravity.csv")
             saveSensorData(sensorMonitor?.gyroEvents, activityId, targetDir, "gyro.csv")
-            toastText = "accel: " + sensorMonitor?.linearEvents?.size +
-                            "\ngravity: " + sensorMonitor?.gravityEvents?.size +
-                            "\ngyro: " + sensorMonitor?.gyroEvents?.size +
-                            "\ntime: " + (sensorMonitor?.linearEvents?.size!! * samplingPeriodUs / 1_000_000)
             sensorMonitor?.clearAllEvents()
         }
-        Toast.makeText(applicationContext, toastText, Toast.LENGTH_LONG).show()
     }
 
     private fun saveSensorData(events : MutableList<String>?, activityId: Int, targetDir: File, filename : String) {
@@ -179,6 +175,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun getTimeMargin() : Int {
         return Integer.valueOf(findViewById<TextView>(R.id.text_delay_s).text.toString())
+    }
+
+    private fun toastDataSummary(sensorMonitor: SensorMonitor?) {
+        val toastText = "accel: " + sensorMonitor?.linearEvents?.size +
+                "\ngravity: " + sensorMonitor?.gravityEvents?.size +
+                "\ngyro: " + sensorMonitor?.gyroEvents?.size +
+                "\ntime: " + (sensorMonitor?.linearEvents?.size!! * samplingPeriodUs / 1_000_000)
+        Toast.makeText(applicationContext, toastText, Toast.LENGTH_LONG).show()
     }
 
 

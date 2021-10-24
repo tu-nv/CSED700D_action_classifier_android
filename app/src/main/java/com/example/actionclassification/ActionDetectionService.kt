@@ -9,26 +9,30 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.*
+import android.speech.tts.TextToSpeech
 import androidx.core.app.NotificationCompat
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
+import android.widget.Toast
 
-class ActionDetectionService: Service(), SensorEventListener {
+
+class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnInitListener {
     private enum class RawDataType {
         LINEAR_X, LINEAR_Y, LINEAR_Z, GYRO_X, GYRO_Y, GYRO_Z, GRAVITY_X, GRAVITY_Y, GRAVITY_Z
     }
 
     private val svmModel = SVCWithParams()
-
     private val ONGOING_NOTIFICATION_ID = 1
+
     private val CHANNEL_ID = "SensorServiceChannelId"
     private val CHANNEL_NAME = "SensorServiceChannel"
-
     private val SAMPLING_PERIOD_US = 10_000
-    private val DETECTION_WINDOW_SEC = 4
-    private val DETECTION_WINDOW_SIZE = DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US
 
-    private var rawData = Array(RawDataType.values().size) { SensorData(DETECTION_WINDOW_SIZE)}
+    private val DETECTION_WINDOW_SEC = 2
+    private val DETECTION_WINDOW_SIZE = DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US
+    private var rawData = Array(RawDataType.values().size) { RawDataRarray(DETECTION_WINDOW_SIZE)}
+
+    private lateinit var tts : TextToSpeech
 
     private val mBinder = SensorBinder()
     private lateinit var mSensorManager : SensorManager
@@ -43,7 +47,8 @@ class ActionDetectionService: Service(), SensorEventListener {
 
     private var mDetectorThread = Thread {
         while(isDetecting.get()) {
-            Thread.sleep((DETECTION_WINDOW_SEC * 1000/2).toLong())
+            // detect every 2sec regardless the window detection size
+            Thread.sleep(2000)
 
             // for each type we cal 3 features
             val features = DoubleArray(RawDataType.values().size * 3)
@@ -56,6 +61,11 @@ class ActionDetectionService: Service(), SensorEventListener {
             }
             val curAction = svmModel.predict(features)
             println("current action is: ${curAction}")
+
+            tts.speak( SensorCollector.ActionType.values()[curAction].toString(),
+                TextToSpeech.QUEUE_FLUSH, null, null)
+
+
         }
     }
 
@@ -71,6 +81,8 @@ class ActionDetectionService: Service(), SensorEventListener {
         if (intent == null) return START_NOT_STICKY
         makeForeground()
         isDetecting.set(true)
+
+        tts = TextToSpeech(this, this)
 
         mWorker.start()
         mWorkerHandler = Handler(mWorker.looper)
@@ -151,4 +163,14 @@ class ActionDetectionService: Service(), SensorEventListener {
     }
 
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {}
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val result = tts.setLanguage(Locale.US)
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Toast.makeText(applicationContext, "TTS: Language not supported", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(applicationContext, "Init TTS failed", Toast.LENGTH_SHORT).show()
+        }
+    }
 }

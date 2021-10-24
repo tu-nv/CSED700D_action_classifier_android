@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".SensorDataCollector">
+    tools:context=".SensorCollector">
 
     <RadioGroup
         android:id="@+id/rad_btn_activity_selection"
@@ -100,16 +100,5 @@
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/rad_btn_activity_selection" />
-
-    <Button
-        android:id="@+id/btn_detect_action"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:text="Start monitoring"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_start_stop" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

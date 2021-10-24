@@ -4,8 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.hardware.Sensor
-import android.hardware.SensorManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.IBinder
@@ -58,7 +56,7 @@ class ActionDetection : AppCompatActivity() {
 
         val btnCollectDataActivity = findViewById<Button>(R.id.btn_collect_data_activity)
         btnCollectDataActivity.setOnClickListener {
-            val intent = Intent(this, SensorDataCollector::class.java)
+            val intent = Intent(this, SensorCollector::class.java)
             startActivity(intent)
         }
 

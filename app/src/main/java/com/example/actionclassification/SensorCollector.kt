@@ -21,7 +21,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
-class SensorDataCollector : AppCompatActivity() {
+class SensorCollector : AppCompatActivity() {
+    enum class ActionType {
+        OTHERS, WALKING, RUNNING, STANDING, SITTING, UPSTAIRS, DOWNSTAIRS
+    }
     private lateinit var mSensorManager : SensorManager
     private lateinit var mLinear : Sensor
     private lateinit var mGravity : Sensor
@@ -150,14 +153,14 @@ class SensorDataCollector : AppCompatActivity() {
 
     private fun getCurrentActivityId(): Int {
         return when (findViewById<RadioGroup>(R.id.rad_btn_activity_selection).checkedRadioButtonId) {
-            R.id.rad_btn_walking -> 1
-            R.id.rad_btn_running -> 2
-            R.id.rad_btn_standing -> 3
-            R.id.rad_btn_sitting -> 4
-            R.id.rad_btn_upstairs -> 5
-            R.id.rad_btn_downstairs -> 6
-            R.id.rad_btn_other -> 0
-            else -> 0
+            R.id.rad_btn_walking -> ActionType.WALKING.ordinal
+            R.id.rad_btn_running ->  ActionType.RUNNING.ordinal
+            R.id.rad_btn_standing ->  ActionType.STANDING.ordinal
+            R.id.rad_btn_sitting ->  ActionType.SITTING.ordinal
+            R.id.rad_btn_upstairs ->  ActionType.UPSTAIRS.ordinal
+            R.id.rad_btn_downstairs ->  ActionType.DOWNSTAIRS.ordinal
+            R.id.rad_btn_other ->  ActionType.OTHERS.ordinal
+            else ->  ActionType.OTHERS.ordinal
         }
     }
 

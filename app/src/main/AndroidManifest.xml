@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SensorDataCollector"
+        <activity android:name=".SensorCollector"
             android:parentActivityName=".ActionDetection">
         </activity>
     </application>

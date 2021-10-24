@@ -21,19 +21,20 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 
-class MainActivity : AppCompatActivity() {
+class SensorDataCollector : AppCompatActivity() {
     private lateinit var mSensorManager : SensorManager
-    private var mLinear : Sensor ?= null
-    private var mGravity : Sensor ?= null
-    private var mGyro : Sensor ?= null
+    private lateinit var mLinear : Sensor
+    private lateinit var mGravity : Sensor
+    private lateinit var mGyro : Sensor
     private var isSensing : Boolean = false
     private var isPause : Boolean = false
-    private var sensorMonitor: SensorMonitor? = null
+    private lateinit var sensorCollectorListener: SensorCollectorListener
     private val samplingPeriodUs = 10_000
+    private val delayStartEarlyStopTimeSec = 5
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        setContentView(R.layout.activity_sensor_data_collector)
         // keep screen on because somehow wakelock does not work on keep sensor reading
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
         mGravity = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
         mGyro = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
 
-        sensorMonitor = SensorMonitor(WeakReference<MainActivity>(this))
+        sensorCollectorListener = SensorCollectorListener()
 
         val formatter = DateTimeFormatter.ofPattern("dd_HH_mm")
         val formatted = LocalDateTime.now().format(formatter)
@@ -52,15 +53,8 @@ class MainActivity : AppCompatActivity() {
         val btnPauseResume = findViewById<Button>(R.id.btn_pause_resume)
         btnPauseResume.isEnabled = false
 
-//        fixedRateTimer("sensorLogTimer", true, 1000L, 1000) {
-//            println("accel sensor value: " + sensorMonitor?.accelEvents?.lastOrNull())
-//            println("gravity sensor value: " + sensorMonitor?.gravityEvents?.lastOrNull())
-//            println("gyro sensor value: " + sensorMonitor?.gyroEvents?.lastOrNull())
-//        }
-
         btnStartStop.setOnClickListener {
-            isSensing = !isSensing
-            if (isSensing) {
+            if (!isSensing) {
                 startSensing()
                 btnStartStop.text = "Stop"
                 btnPauseResume.isEnabled = true
@@ -71,17 +65,18 @@ class MainActivity : AppCompatActivity() {
                 btnPauseResume.text = "Pause"
                 btnPauseResume.isEnabled = false
             }
+            isSensing = !isSensing
         }
 
         btnPauseResume.setOnClickListener {
-            isPause = !isPause
-            if (isPause) {
+            if (!isPause) {
                 btnPauseResume.text = "Continue"
                 pauseSensing()
             } else {
                 btnPauseResume.text = "Pause"
                 continueSensing()
             }
+            isPause = !isPause
         }
 
     }
@@ -91,26 +86,34 @@ class MainActivity : AppCompatActivity() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (isSensing) {
+            stopSensing()
+        }
+    }
+
     private fun continueSensing() {
-        sensorMonitor?.isPause?.set(false)
+        sensorCollectorListener.isPause.set(false)
         setDiscardUntilTime()
     }
 
     private fun pauseSensing() {
-        sensorMonitor?.isPause?.set(true)
+        sensorCollectorListener.isPause.set(true)
         discardLastEvents()
-        toastDataSummary(sensorMonitor)
+        toastDataSummary(sensorCollectorListener)
     }
 
     private fun startSensing() {
         setDiscardUntilTime()
-        mSensorManager.registerListener(sensorMonitor, mLinear, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
-        mSensorManager.registerListener(sensorMonitor, mGravity, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
-        mSensorManager.registerListener(sensorMonitor, mGyro, samplingPeriodUs, sensorMonitor?.mWorkerHandler)
+        mSensorManager.registerListener(sensorCollectorListener, mLinear, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
+        mSensorManager.registerListener(sensorCollectorListener, mGravity, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
+        mSensorManager.registerListener(sensorCollectorListener, mGyro, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
     }
 
     private fun stopSensing() {
-        mSensorManager.unregisterListener(sensorMonitor)
+        mSensorManager.unregisterListener(sensorCollectorListener)
         // if its already in pause state, then the last events already discarded
         if (!isPause) {
             discardLastEvents()
@@ -118,12 +121,12 @@ class MainActivity : AppCompatActivity() {
 
         val activityId = getCurrentActivityId()
         val targetDir = createTargetDir(activityId)
-        toastDataSummary(sensorMonitor)
-        sensorMonitor?.lock?.withLock {
-            saveSensorData(sensorMonitor?.linearEvents, activityId, targetDir, "linear.csv")
-            saveSensorData(sensorMonitor?.gravityEvents, activityId, targetDir, "gravity.csv")
-            saveSensorData(sensorMonitor?.gyroEvents, activityId, targetDir, "gyro.csv")
-            sensorMonitor?.clearAllEvents()
+        toastDataSummary(sensorCollectorListener)
+        sensorCollectorListener.lock.withLock {
+            saveSensorData(sensorCollectorListener.linearEvents, activityId, targetDir, "linear.csv")
+            saveSensorData(sensorCollectorListener.gravityEvents, activityId, targetDir, "gravity.csv")
+            saveSensorData(sensorCollectorListener.gyroEvents, activityId, targetDir, "gyro.csv")
+            sensorCollectorListener.clearAllEvents()
         }
     }
 
@@ -159,29 +162,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setDiscardUntilTime() {
-        sensorMonitor?.discardUntilTime?.set(elapsedRealtimeNanos() + getTimeMargin().toLong() * 1_000_000_000)
+        sensorCollectorListener.discardUntilTime.set(elapsedRealtimeNanos() + delayStartEarlyStopTimeSec.toLong() * 1_000_000_000)
     }
 
     private fun discardLastEvents() {
-        val numEventsToRemove = getTimeMargin() * 1_000_000 / samplingPeriodUs
+        val numEventsToRemove = delayStartEarlyStopTimeSec * 1_000_000 / samplingPeriodUs
 //        println("numEventsToRemove: $numEventsToRemove")
-        sensorMonitor?.dropLastEvents(numEventsToRemove)
+        sensorCollectorListener.dropLastEvents(numEventsToRemove)
     }
 
     private fun resetPauseState() {
         isPause = false
-        sensorMonitor?.isPause?.set(false)
+        sensorCollectorListener.isPause.set(false)
     }
 
-    private fun getTimeMargin() : Int {
-        return Integer.valueOf(findViewById<TextView>(R.id.text_delay_s).text.toString())
-    }
 
-    private fun toastDataSummary(sensorMonitor: SensorMonitor?) {
-        val toastText = "accel: " + sensorMonitor?.linearEvents?.size +
-                "\ngravity: " + sensorMonitor?.gravityEvents?.size +
-                "\ngyro: " + sensorMonitor?.gyroEvents?.size +
-                "\ntime: " + (sensorMonitor?.linearEvents?.size!! * samplingPeriodUs / 1_000_000)
+    private fun toastDataSummary(sensorCollectorListener: SensorCollectorListener?) {
+        val toastText = "accel: " + sensorCollectorListener?.linearEvents?.size +
+                "\ngravity: " + sensorCollectorListener?.gravityEvents?.size +
+                "\ngyro: " + sensorCollectorListener?.gyroEvents?.size +
+                "\ntime: " + (sensorCollectorListener?.linearEvents?.size!! * samplingPeriodUs / 1_000_000)
         Toast.makeText(applicationContext, toastText, Toast.LENGTH_LONG).show()
     }
 

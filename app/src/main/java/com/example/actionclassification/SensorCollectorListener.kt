@@ -12,9 +12,9 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 
-class SensorMonitor(mActivity : WeakReference<MainActivity>): SensorEventListener {
+class SensorCollectorListener(): SensorEventListener {
     private val mWorker = HandlerThread("WorkerThread")
-    var mWorkerHandler: Handler? = null
+    var mWorkerHandler: Handler
     var linearEvents: MutableList<String> = ArrayList()
     var gravityEvents: MutableList<String> = ArrayList()
     var gyroEvents: MutableList<String> = ArrayList()

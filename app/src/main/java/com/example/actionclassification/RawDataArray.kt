@@ -4,7 +4,7 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.sqrt
 
-class RawDataRarray(private val size : Int) {
+class RawDataArray(private val size : Int) {
     private var data = DoubleArray(size)
     private var curSize = 0
     private var curIdx = 0

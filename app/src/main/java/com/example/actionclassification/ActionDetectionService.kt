@@ -21,7 +21,7 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         LINEAR_X, LINEAR_Y, LINEAR_Z, GYRO_X, GYRO_Y, GYRO_Z, GRAVITY_X, GRAVITY_Y, GRAVITY_Z
     }
 
-    private val svmModel = SVCWithParams()
+    private lateinit var svmModel : SVCWithParams
     private val ONGOING_NOTIFICATION_ID = 1
 
     private val CHANNEL_ID = "SensorServiceChannelId"
@@ -29,8 +29,8 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
     private val SAMPLING_PERIOD_US = 10_000
 
     private val DETECTION_WINDOW_SEC = 2
-    private val DETECTION_WINDOW_SIZE = DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US
-    private var rawData = Array(RawDataType.values().size) { RawDataRarray(DETECTION_WINDOW_SIZE)}
+    private val DETECTION_WINDOW_SIZE = (DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US).toInt()
+    private var rawData = Array(RawDataType.values().size) { RawDataArray(DETECTION_WINDOW_SIZE)}
 
     private lateinit var tts : TextToSpeech
 
@@ -46,11 +46,21 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
     var isDetecting = AtomicBoolean(false)
 
     private var mDetectorThread = Thread {
-        while(isDetecting.get()) {
-            // detect every 2sec regardless the window detection size
-            Thread.sleep(2000)
+        // delay start
+        Thread.sleep(5000)
 
-            // for each type we cal 3 features
+        // cal inference delay only. Total delay will be inference delay + window buffer time
+        // the delay is inference delay over 50 sample min
+        var cnt = 0
+        var sumDelay = 0.0
+
+        while(isDetecting.get()) {
+            // detect every 1sec regardless the window detection size
+            Thread.sleep(1000)
+
+            val startTime = System.nanoTime()
+
+            // for each type we cal 3 features: mean, std, and energy
             val features = DoubleArray(RawDataType.values().size * 3)
             for ((idx, sensorData) in rawData.withIndex()) {
                 val perTypeFeatures = sensorData.extractFeatures()
@@ -60,12 +70,19 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
                 // println("${RawDataType.values()[idx]}: ${features[0]}, ${features[1]}, ${features[2]}")
             }
             val curAction = svmModel.predict(features)
-            println("current action is: ${curAction}")
+            // println("current action is: ${curAction}")
 
-            tts.speak( SensorCollector.ActionType.values()[curAction].toString(),
+            if (cnt < 50) {
+                val detectionTimeSec = (System.nanoTime() - startTime) / 1_000_000_000.0
+                sumDelay += detectionTimeSec
+                cnt++
+            } else if (cnt == 50) {
+             println("average inference delay over ${cnt} detection times is: ${sumDelay/cnt}")
+            }
+
+            tts.stop()
+            tts.speak(SensorCollector.ActionType.values()[curAction].toString(),
                 TextToSpeech.QUEUE_FLUSH, null, null)
-
-
         }
     }
 
@@ -81,6 +98,8 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         if (intent == null) return START_NOT_STICKY
         makeForeground()
         isDetecting.set(true)
+
+        svmModel = SVCWithParams(assets)
 
         tts = TextToSpeech(this, this)
 
@@ -99,7 +118,11 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         super.onDestroy()
         if (isDetecting.get()) {
             stopSensing()
+            isDetecting.set(false)
+            tts.stop()
+            tts.shutdown()
         }
+
         mWorker.quitSafely()
     }
 

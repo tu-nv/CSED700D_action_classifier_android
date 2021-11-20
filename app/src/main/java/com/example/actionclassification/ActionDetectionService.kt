@@ -45,6 +45,8 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
 
     var isDetecting = AtomicBoolean(false)
 
+    private lateinit var wakeLock: PowerManager.WakeLock
+
     private var mDetectorThread = Thread {
         // delay start
         Thread.sleep(5000)
@@ -79,7 +81,7 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
             } else if (cnt == 50) {
              println("average inference delay over ${cnt} detection times is: ${sumDelay/cnt}")
             }
-
+            println("still detecting...")
             tts.stop()
             tts.speak(SensorCollector.ActionType.values()[curAction].toString(),
                 TextToSpeech.QUEUE_FLUSH, null, null)
@@ -98,6 +100,11 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         if (intent == null) return START_NOT_STICKY
         makeForeground()
         isDetecting.set(true)
+        wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ActionClassifier::WakeLockTag").apply {
+                    acquire(30*60*1000L /*30 minutes*/)
+                }
+            }
 
         svmModel = SVCWithParams(assets)
 
@@ -121,6 +128,7 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
             isDetecting.set(false)
             tts.stop()
             tts.shutdown()
+            wakeLock.release()
         }
 
         mWorker.quitSafely()

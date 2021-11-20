@@ -38,8 +38,6 @@ class SensorCollector : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_sensor_data_collector)
-        // keep screen on because somehow wakelock does not work on keep sensor reading
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         mSensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         mLinear = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
@@ -84,14 +82,9 @@ class SensorCollector : AppCompatActivity() {
 
     }
 
-    // https://stackoverflow.com/questions/43784161/how-to-implement-finalize-in-kotlin
-    protected fun finalize() {
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-    }
 
     override fun onDestroy() {
         super.onDestroy()
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (isSensing) {
             stopSensing()
         }
@@ -110,9 +103,15 @@ class SensorCollector : AppCompatActivity() {
 
     private fun startSensing() {
         setDiscardUntilTime()
-        mSensorManager.registerListener(sensorCollectorListener, mLinear, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
-        mSensorManager.registerListener(sensorCollectorListener, mGravity, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
-        mSensorManager.registerListener(sensorCollectorListener, mGyro, samplingPeriodUs, sensorCollectorListener?.mWorkerHandler)
+        mSensorManager.registerListener(sensorCollectorListener, mLinear, samplingPeriodUs,
+            sensorCollectorListener.mWorkerHandler
+        )
+        mSensorManager.registerListener(sensorCollectorListener, mGravity, samplingPeriodUs,
+            sensorCollectorListener.mWorkerHandler
+        )
+        mSensorManager.registerListener(sensorCollectorListener, mGyro, samplingPeriodUs,
+            sensorCollectorListener.mWorkerHandler
+        )
     }
 
     private fun stopSensing() {

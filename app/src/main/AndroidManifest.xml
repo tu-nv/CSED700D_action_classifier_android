@@ -26,6 +26,11 @@
             android:enabled="true"
             android:exported="true">
         </service>
+        <service
+            android:name=".EnergyMonitorService"
+            android:enabled="true"
+            android:exported="true">
+        </service>
         <activity
             android:name=".ActionDetection"
             android:exported="true">

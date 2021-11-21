@@ -10,7 +10,7 @@
         android:id="@+id/btn_action_detection"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="24dp"
+        android:layout_marginBottom="40dp"
         android:text="Start Monitoring"
         app:layout_constraintBottom_toTopOf="@+id/btn_collect_data_activity"
         app:layout_constraintEnd_toEndOf="parent"
@@ -21,9 +21,31 @@
         android:id="@+id/btn_collect_data_activity"
         android:layout_width="wrap_content"
         android:layout_height="48dp"
-        android:layout_marginBottom="60dp"
+        android:layout_marginBottom="40dp"
         android:text="Collect data"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btn_monitor_energy"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/btn_monitor_energy"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="56dp"
+        android:text="Start Monitor Energy"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/tv_energy_result"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="52dp"
+        android:text="Avg power usage is:"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -10,10 +10,13 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.*
 import android.speech.tts.TextToSpeech
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import org.pytorch.LiteModuleLoader
+import org.pytorch.Module
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
-import android.widget.Toast
+import kotlin.concurrent.timerTask
 
 
 class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnInitListener {
@@ -21,7 +24,7 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         LINEAR_X, LINEAR_Y, LINEAR_Z, GYRO_X, GYRO_Y, GYRO_Z, GRAVITY_X, GRAVITY_Y, GRAVITY_Z
     }
 
-    private lateinit var svmModel : SVCWithParams
+    private lateinit var model : Model
     private val ONGOING_NOTIFICATION_ID = 1
 
     private val CHANNEL_ID = "SensorServiceChannelId"
@@ -29,7 +32,9 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
     private val SAMPLING_PERIOD_US = 10_000
 
     private val DETECTION_WINDOW_SEC = 2
-    private val DETECTION_WINDOW_SIZE = (DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US).toInt()
+    val DETECTION_WINDOW_SIZE = (DETECTION_WINDOW_SEC * 1_000_000 / SAMPLING_PERIOD_US).toInt()
+    private val DETECTION_PERIOD_MS : Long = 2000
+
     private var rawData = Array(RawDataType.values().size) { RawDataArray(DETECTION_WINDOW_SIZE)}
 
     private lateinit var tts : TextToSpeech
@@ -47,46 +52,12 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
 
     private lateinit var wakeLock: PowerManager.WakeLock
 
-    private var mDetectorThread = Thread {
-        // delay start
-        Thread.sleep(5000)
+    private lateinit var timer : Timer
 
-        // cal inference delay only. Total delay will be inference delay + window buffer time
-        // the delay is inference delay over 50 sample min
-        var cnt = 0
-        var sumDelay = 0.0
-
-        while(isDetecting.get()) {
-            // detect every 1sec regardless the window detection size
-            Thread.sleep(1000)
-
-            val startTime = System.nanoTime()
-
-            // for each type we cal 3 features: mean, std, and energy
-            val features = DoubleArray(RawDataType.values().size * 3)
-            for ((idx, sensorData) in rawData.withIndex()) {
-                val perTypeFeatures = sensorData.extractFeatures()
-                features[idx*3] = perTypeFeatures[0]
-                features[idx*3+1] = perTypeFeatures[1]
-                features[idx*3+2] = perTypeFeatures[2]
-                // println("${RawDataType.values()[idx]}: ${features[0]}, ${features[1]}, ${features[2]}")
-            }
-            val curAction = svmModel.predict(features)
-            // println("current action is: ${curAction}")
-
-            if (cnt < 50) {
-                val detectionTimeSec = (System.nanoTime() - startTime) / 1_000_000_000.0
-                sumDelay += detectionTimeSec
-                cnt++
-            } else if (cnt == 50) {
-             println("average inference delay over ${cnt} detection times is: ${sumDelay/cnt}")
-            }
-            println("still detecting...")
-            tts.stop()
-            tts.speak(SensorCollector.ActionType.values()[curAction].toString(),
-                TextToSpeech.QUEUE_FLUSH, null, null)
-        }
-    }
+    // cal inference delay only. Total delay will be inference delay + window buffer time
+    // the delay is inference delay over 50 sample min
+    private var detectionCnt = 0
+    private var sumDelay = 0.0
 
     inner class SensorBinder : Binder() {
         fun getService(): ActionDetectionService = this@ActionDetectionService
@@ -106,7 +77,7 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
                 }
             }
 
-        svmModel = SVCWithParams(assets)
+        model = Model(this, -86.58585357666016f, 119.1611099243164f)
 
         tts = TextToSpeech(this, this)
 
@@ -116,7 +87,27 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         initSensors()
         startSensing()
 
-        mDetectorThread.start()
+        timer = Timer()
+        timer.scheduleAtFixedRate(timerTask {
+            val startTime = System.nanoTime()
+            val data = rawData.map { it.getNormalizedData() }.toTypedArray()
+            val curAction = model.predict(data)
+            // println("current action is: ${curAction}")
+
+            if (detectionCnt < 50) {
+                val detectionTimeSec = (System.nanoTime() - startTime) / 1_000_000_000.0
+                sumDelay += detectionTimeSec
+                detectionCnt++
+            } else if (detectionCnt == 50) {
+                println("average inference delay over ${detectionCnt} detection times is: ${sumDelay/detectionCnt}")
+                detectionCnt++
+            }
+
+            tts.stop()
+            tts.speak(SensorCollector.ActionType.values()[curAction].toString(),
+                TextToSpeech.QUEUE_FLUSH, null, null)
+
+        },5000, DETECTION_PERIOD_MS)
 
         return START_NOT_STICKY
     }
@@ -126,6 +117,8 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         if (isDetecting.get()) {
             stopSensing()
             isDetecting.set(false)
+            timer.cancel()
+            timer.purge()
             tts.stop()
             tts.shutdown()
             wakeLock.release()
@@ -171,23 +164,25 @@ class ActionDetectionService: Service(), SensorEventListener, TextToSpeech.OnIni
         mSensorManager.unregisterListener(this)
     }
 
+
+
     override fun onSensorChanged(event: SensorEvent?) {
         if (event != null) {
             when (event.sensor?.type) {
                 Sensor.TYPE_LINEAR_ACCELERATION -> {
-                    rawData[RawDataType.LINEAR_X.ordinal].append(event.values[0].toDouble())
-                    rawData[RawDataType.LINEAR_Y.ordinal].append(event.values[1].toDouble())
-                    rawData[RawDataType.LINEAR_Z.ordinal].append(event.values[2].toDouble())
+                    rawData[RawDataType.LINEAR_X.ordinal].append(event.values[0])
+                    rawData[RawDataType.LINEAR_Y.ordinal].append(event.values[1])
+                    rawData[RawDataType.LINEAR_Z.ordinal].append(event.values[2])
                 }
                 Sensor.TYPE_GYROSCOPE -> {
-                    rawData[RawDataType.GYRO_X.ordinal].append(event.values[0].toDouble())
-                    rawData[RawDataType.GYRO_Y.ordinal].append(event.values[1].toDouble())
-                    rawData[RawDataType.GYRO_Z.ordinal].append(event.values[2].toDouble())
+                    rawData[RawDataType.GYRO_X.ordinal].append(event.values[0])
+                    rawData[RawDataType.GYRO_Y.ordinal].append(event.values[1])
+                    rawData[RawDataType.GYRO_Z.ordinal].append(event.values[2])
                 }
                 Sensor.TYPE_GRAVITY -> {
-                    rawData[RawDataType.GRAVITY_X.ordinal].append(event.values[0].toDouble())
-                    rawData[RawDataType.GRAVITY_Y.ordinal].append(event.values[1].toDouble())
-                    rawData[RawDataType.GRAVITY_Z.ordinal].append(event.values[2].toDouble())
+                    rawData[RawDataType.GRAVITY_X.ordinal].append(event.values[0])
+                    rawData[RawDataType.GRAVITY_Y.ordinal].append(event.values[1])
+                    rawData[RawDataType.GRAVITY_Z.ordinal].append(event.values[2])
                 }
             }
         }

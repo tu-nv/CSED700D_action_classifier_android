@@ -1,14 +1,18 @@
 package com.example.actionclassification
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
+import android.os.BatteryManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.IBinder
+import android.os.PowerManager
 import android.widget.Button
+import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LiveData
+import java.util.*
+import kotlin.concurrent.timerTask
 
 class ActionDetection : AppCompatActivity() {
     private lateinit var actionDetectionService: ActionDetectionService
@@ -60,7 +64,19 @@ class ActionDetection : AppCompatActivity() {
             startActivity(intent)
         }
 
+        val energyMonServiceIntent = Intent(this, EnergyMonitorService::class.java)
+        val btnMonitorEnergy = findViewById<Button>(R.id.btn_monitor_energy)
+        // the service will stop and destroy itself after finish monitoring
+        btnMonitorEnergy.setOnClickListener {
+            ContextCompat.startForegroundService(this, energyMonServiceIntent)
+        }
+
+
+        EnergyMonitorService.energyMonResult.observe(this, { result ->
+            findViewById<TextView>(R.id.tv_energy_result).text = result
+        })
     }
+
 
     override fun onStart() {
         super.onStart()

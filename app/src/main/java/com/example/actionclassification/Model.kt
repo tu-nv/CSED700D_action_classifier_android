@@ -9,7 +9,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
-class Model(context: Context, minVal: Float, maxVal: Float) {
+class Model(context: Context, minVal: Float, maxVal: Float, private val inputDim: Long) {
     private val model: Module
     private val valRange = maxVal - minVal
 
@@ -19,7 +19,7 @@ class Model(context: Context, minVal: Float, maxVal: Float) {
 
     fun predict(data: Array<Array<Float>>): Int {
         val normalizedData = data.flatten().map { it / valRange }.toFloatArray()
-        val input = Tensor.fromBlob(normalizedData, longArrayOf(1, 1, 9, 200))
+        val input = Tensor.fromBlob(normalizedData, longArrayOf(1, 1, 9, inputDim))
         val output = model.forward(IValue.from(input)).toTensor().dataAsFloatArray
         return output.indexOfFirst { it == output.maxOfOrNull { it2 -> it2 } }
     }
